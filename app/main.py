@@ -2,12 +2,22 @@ import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 
 from app.config import get_settings
+from app.exceptions import (
+    PointCVException,
+    pointcv_exception_handler,
+    request_validation_exception_handler,
+    validation_exception_handler,
+)
 from app.routers import admin, auth, files, health, orders, payments, public
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -44,6 +54,48 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.middleware("http")
+    async def unexpected_exception_middleware(request: Request, call_next):
+        try:
+            return await call_next(request)
+        except PointCVException:
+            raise
+        except Exception:
+            logger.exception(
+                "Unhandled error during %s %s",
+                request.method,
+                request.url.path,
+            )
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "code": "INTERNAL_SERVER_ERROR",
+                    "message": "Internal server error",
+                },
+            )
+
+    @app.exception_handler(PointCVException)
+    async def handle_pointcv_exception(
+        request: Request,
+        exc: PointCVException,
+    ) -> JSONResponse:
+        return await pointcv_exception_handler(request, exc)
+
+    @app.exception_handler(ValidationError)
+    async def handle_validation_exception(
+        request: Request,
+        exc: ValidationError,
+    ) -> JSONResponse:
+        return await validation_exception_handler(request, exc)
+
+    @app.exception_handler(RequestValidationError)
+    async def handle_request_validation_exception(
+        request: Request,
+        exc: RequestValidationError,
+    ) -> JSONResponse:
+        return await request_validation_exception_handler(request, exc)
+
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(orders.router)

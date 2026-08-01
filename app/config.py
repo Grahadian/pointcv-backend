@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     DATABASE_URL: str = "sqlite+aiosqlite:///./pointcv.db"
     CLERK_SECRET_KEY: str = ""
+    CLERK_WEBHOOK_SECRET: str = ""
     CLERK_JWKS_URL: str = "https://api.clerk.dev/v1/jwks"
     MIDTRANS_SERVER_KEY: str = ""
     MIDTRANS_CLIENT_KEY: str = ""
@@ -17,7 +18,7 @@ class Settings(BaseSettings):
     R2_SECRET_ACCESS_KEY: str = ""
     R2_BUCKET_NAME: str = "pointcv-files"
     R2_PUBLIC_URL: str = ""
-    ALLOWED_ORIGINS: str = "http://localhost:3000"
+    ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
 
     model_config = SettingsConfigDict(
         env_file=".env",

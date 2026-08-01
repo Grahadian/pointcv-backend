@@ -110,3 +110,36 @@ class BlogPostResponse(BlogPostBase, ORMModel):
     id: str
     created_at: datetime
     updated_at: datetime
+
+
+class BlogPostListResponse(ORMModel):
+    id: str
+    slug: str
+    title: dict[str, Any]
+    excerpt: dict[str, Any]
+    cover_image_url: str | None = None
+    author: str
+    tags: list[Any] = Field(default_factory=list)
+    published_at: datetime | None = None
+    view_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+
+class BlogListResponse(BaseModel):
+    items: list[BlogPostListResponse]
+    total: int
+    page: int
+    limit: int
+    pages: int
+
+
+class DashboardStatsResponse(BaseModel):
+    total_orders: int
+    pending_orders: int
+    processing_orders: int
+    completed_orders: int
+    total_revenue: int
+    revenue_this_month: int
+    total_users: int
+    new_users_this_month: int

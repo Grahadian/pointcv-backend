@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 from app.schemas.catalog import PackageResponse, TemplateResponse
 from app.schemas.common import ORMModel
@@ -35,6 +36,31 @@ class FileResponse(FileBase, ORMModel):
     created_at: datetime
 
 
+class UploadRequest(BaseModel):
+    filename: str = Field(min_length=1, max_length=255)
+    file_type: str
+    mime_type: str = Field(min_length=1, max_length=100)
+    size_bytes: int = Field(gt=0)
+    order_id: UUID | None = None
+
+
+class UploadURLResponse(BaseModel):
+    upload_url: str
+    public_url: str
+    key: str
+    expires_in: int
+
+
+class UploadConfirm(BaseModel):
+    order_id: UUID
+    key: str = Field(min_length=1, max_length=1024)
+    filename: str = Field(min_length=1, max_length=255)
+    url: str = Field(min_length=1, max_length=1024)
+    file_type: str
+    mime_type: str = Field(min_length=1, max_length=100)
+    size_bytes: int = Field(gt=0)
+
+
 class OrderBase(BaseModel):
     user_id: str
     package_id: str
@@ -51,8 +77,12 @@ class OrderBase(BaseModel):
     revision_count: int = 0
 
 
-class OrderCreate(OrderBase):
-    pass
+class OrderCreate(BaseModel):
+    package_id: str
+    template_id: str
+    voucher_code: str | None = None
+    cv_data: dict[str, Any] | None = None
+    notes: str | None = None
 
 
 class OrderUpdate(BaseModel):
@@ -77,6 +107,59 @@ class OrderResponse(OrderBase, ORMModel):
     package: PackageResponse
     template: TemplateResponse
     files: list[FileResponse] = Field(default_factory=list)
+
+    @computed_field
+    @property
+    def final_price(self) -> int:
+        return max(self.price - self.discount_amount, 0)
+
+
+class RevisionRequest(BaseModel):
+    note: str = Field(min_length=1, max_length=2000)
+
+
+class StatusUpdate(BaseModel):
+    status: str
+    progress: int = Field(ge=0, le=100)
+    note: str | None = None
+
+
+class AdminOrderUser(ORMModel):
+    id: str
+    email: str
+    name: str | None = None
+
+
+class AdminOrderResponse(OrderResponse):
+    user: AdminOrderUser
+
+
+class AdminOrderListResponse(BaseModel):
+    items: list[AdminOrderResponse]
+    total: int
+    page: int
+    limit: int
+    pages: int
+
+
+class PaymentRequest(BaseModel):
+    order_id: UUID
+
+
+class PaymentResponse(BaseModel):
+    snap_token: str
+    order_id: str
+    redirect_url: str | None = None
+
+
+class PaymentStatusResponse(BaseModel):
+    order_id: str
+    status: str
+    payment_status: str
+    payment_id: str | None = None
+    price: int
+    discount_amount: int
+    final_price: int
 
 
 class OrderStatusHistoryBase(BaseModel):
