@@ -35,10 +35,11 @@ COPY --from=builder /install /install
 COPY alembic.ini ./
 COPY alembic ./alembic
 COPY app ./app
+COPY entrypoint.sh /app/entrypoint.sh
 
 RUN mkdir -p /app/data && chown -R app:app /app/data
 
 USER app
 EXPOSE 8000
 
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["/app/entrypoint.sh"]
