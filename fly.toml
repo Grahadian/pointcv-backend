@@ -1,0 +1,48 @@
+# fly.toml app configuration file generated for pointcv-api on 2026-08-03T09:11:34+07:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'pointcv-api'
+primary_region = 'sin'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[deploy]
+  strategy = 'rolling'
+  release_command = ''
+
+[env]
+  ALLOWED_ORIGINS = 'https://pointcv.id,https://www.pointcv.id,https://pointcv.vercel.app'
+  APP_NAME = 'PointCV API'
+  DATABASE_URL = 'sqlite+aiosqlite:////app/data/pointcv.db'
+  DEBUG = 'false'
+  MIDTRANS_IS_PRODUCTION = 'true'
+  R2_BUCKET_NAME = 'pointcv-files'
+  WEB_CONCURRENCY = '2'
+
+[[mounts]]
+  source = 'pointcv_data'
+  destination = '/app/data'
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = 'off'
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['app']
+
+  [[http_service.checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '30s'
+    method = 'GET'
+    path = '/health'
+    protocol = 'http'
+
+[[vm]]
+  memory = '256mb'
+  cpus = 1
+  memory_mb = 256
