@@ -9,8 +9,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
+from sqlalchemy import text
 
 from app.config import get_settings
+from app.database import get_db_engine
 from app.exceptions import (
     PointCVException,
     pointcv_exception_handler,
@@ -25,7 +27,32 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    settings = get_settings()
+    if not settings.DATABASE_URL.strip():
+        raise RuntimeError(
+            "DATABASE_URL is not set. PointCV will not start without a database. "
+            "Production: set DATABASE_URL to your Neon PostgreSQL URL "
+            "(postgresql://user:pass@host/db?sslmode=require). "
+            "Local dev: set DATABASE_URL=sqlite+aiosqlite:///./pointcv.db"
+        )
+    if not settings.BETTER_AUTH_SECRET:
+        raise RuntimeError(
+            "BETTER_AUTH_SECRET is not set. It must match the frontend's "
+            "BETTER_AUTH_SECRET (generate with `openssl rand -base64 32`)."
+        )
+
     logger.info("Starting %s", app.title)
+    try:
+        engine = get_db_engine()
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+    except Exception:
+        logger.exception("Database connection FAILED at startup")
+        raise RuntimeError(
+            "Could not connect to the database on startup. "
+            "Check DATABASE_URL and that the database is reachable."
+        ) from None
+    logger.info("Database connected")
     yield
     logger.info("Stopping %s", app.title)
 

@@ -1,51 +1,54 @@
-import os
-from collections.abc import AsyncGenerator
-
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
-
 from app.config import get_settings
 
 settings = get_settings()
-
-
-def _ensure_sqlite_dir(database_url: str) -> str:
-    # sqlite+aiosqlite:///./data/pointcv.db  -> create ./data before connect
-    # sqlite+aiosqlite:////app/data/x.db     -> absolute path variant
-    if not database_url.startswith("sqlite"):
-        return database_url
-    path = database_url.partition(":///")[2]
-    if not path:
-        return database_url
-    if path.startswith("/") and not path.startswith("//"):
-        directory = os.path.dirname(path)
-    else:
-        directory = os.path.dirname(os.path.join(os.getcwd(), path))
-    if directory:
-        os.makedirs(directory, exist_ok=True)
-    return database_url
-
-
-engine = create_async_engine(
-    _ensure_sqlite_dir(settings.DATABASE_URL),
-    echo=settings.DEBUG,
-)
-AsyncSessionLocal = async_sessionmaker(
-    bind=engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-)
 Base = declarative_base()
 
+def _normalize_url(url: str) -> str:
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    if url.startswith("postgresql+psycopg2://"):
+        return url.replace("postgresql+psycopg2://", "postgresql+asyncpg://", 1)
+    return url
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    session = AsyncSessionLocal()
+def get_engine():
+    return create_async_engine(
+        _normalize_url(settings.DATABASE_URL),
+        echo=settings.DEBUG,
+        future=True,
+        pool_size=5,
+        max_overflow=10,
+        pool_pre_ping=True,
+    )
+
+def get_sessionmaker(engine):
+    return async_sessionmaker(
+        engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+_engine = None
+_sessionmaker = None
+
+def get_db_engine():
+    global _engine
+    if _engine is None:
+        _engine = get_engine()
+    return _engine
+
+def get_db_sessionmaker():
+    global _sessionmaker
+    if _sessionmaker is None:
+        _sessionmaker = get_sessionmaker(get_db_engine())
+    return _sessionmaker
+
+async def get_db():
+    session = get_db_sessionmaker()()
     try:
         yield session
+        await session.commit()
     except Exception:
         await session.rollback()
         raise
