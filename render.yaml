@@ -6,17 +6,18 @@ services:
     region: singapore
     buildCommand: "pip install -r requirements.txt"
     # Migrate, seed idempotently, then serve. PORT is set by Render ($PORT).
-    startCommand: "alembic upgrade head && python run_seed.py && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000} --workers 1"
+    # Startup safety checks (DATABASE_URL + BETTER_AUTH_SECRET) run inside
+    # app/main.py and will fail fast with a clear error if they are missing.
+    startCommand: "bash render-start.sh"
     healthCheckPath: /health
     # NOTE: Render free-tier web services use an EPHEMERAL filesystem — the
-    # SQLite file is wiped on every deploy. For production persistence set
-    # DATABASE_URL to Neon PostgreSQL in the Render dashboard instead:
-    #   DATABASE_URL=postgresql+asyncpg://user:pass@host/db?sslmode=require
+    # SQLite file is wiped on every deploy. Production REQUIRES Neon PostgreSQL.
+    #   DATABASE_URL=postgresql://user:pass@host/db?sslmode=require
+    # (the app auto-converts postgresql:// -> postgresql+asyncpg:// at runtime
+    # and postgresql+psycopg2:// for alembic migrations).
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
-      - key: DATABASE_URL
-        value: sqlite+aiosqlite:///./data/pointcv.db
       - key: APP_NAME
         value: PointCV API
       - key: DEBUG
