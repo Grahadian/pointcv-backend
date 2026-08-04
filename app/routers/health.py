@@ -6,7 +6,7 @@ from fastapi import APIRouter, Response
 from sqlalchemy import text
 
 from app.config import get_settings
-from app.database import engine
+from app.database import get_db_engine
 
 router = APIRouter(prefix="/health", tags=["health"])
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ async def health_check() -> dict[str, str]:
 
 async def _check_database() -> dict[str, str]:
     try:
-        async with engine.connect() as conn:
+        async with get_db_engine().connect() as conn:
             await conn.execute(text("SELECT 1"))
         return {"status": "ok"}
     except Exception:

@@ -1,7 +1,7 @@
 """Gunicorn production configuration for PointCV API."""
 import os
 
-bind = "0.0.0.0:8000"
+bind = f"0.0.0.0:{os.environ.get('PORT', '10000')}"
 
 workers = int(os.environ.get("WEB_CONCURRENCY", 4))
 worker_class = "uvicorn.workers.UvicornWorker"

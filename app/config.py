@@ -6,7 +6,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     APP_NAME: str = "PointCV API"
     DEBUG: bool = False
-    DATABASE_URL: str = "sqlite+aiosqlite:///./pointcv.db"
+    # Required in production (Neon PostgreSQL: postgresql://...).
+    # Empty = local SQLite fallback (dev only), see app/database.py.
+    DATABASE_URL: str = ""
     BETTER_AUTH_SECRET: str = ""
     BETTER_AUTH_URL: str = "http://localhost:3000"
     MIDTRANS_SERVER_KEY: str = ""

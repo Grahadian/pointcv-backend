@@ -10,8 +10,6 @@ env/
 *.db
 *.sqlite
 *.sqlite3
-alembic/versions/*.py
-!alembic/versions/__init__.py
 .pytest_cache/
 .coverage
 htmlcov/

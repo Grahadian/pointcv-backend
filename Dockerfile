@@ -35,11 +35,12 @@ COPY --from=builder /install /install
 COPY alembic.ini ./
 COPY alembic ./alembic
 COPY app ./app
-COPY entrypoint.sh /app/entrypoint.sh
+COPY render-start.sh /app/render-start.sh
+COPY run_seed.py /app/run_seed.py
 
 RUN mkdir -p /app/data && chown -R app:app /app/data
 
 USER app
-EXPOSE 8000
+EXPOSE 10000
 
-CMD ["/app/entrypoint.sh"]
+CMD ["/app/render-start.sh"]
