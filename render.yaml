@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: pointcv-api
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: "pip install -r requirements.txt"
+    # Migrate, seed idempotently, then serve. PORT is set by Render ($PORT).
+    startCommand: "alembic upgrade head && python run_seed.py && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000} --workers 1"
+    healthCheckPath: /health
+    # NOTE: Render free-tier web services use an EPHEMERAL filesystem — the
+    # SQLite file is wiped on every deploy. For production persistence set
+    # DATABASE_URL to Neon PostgreSQL in the Render dashboard instead:
+    #   DATABASE_URL=postgresql+asyncpg://user:pass@host/db?sslmode=require
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///./data/pointcv.db
+      - key: APP_NAME
+        value: PointCV API
+      - key: DEBUG
+        value: "false"
+      - key: ALLOWED_ORIGINS
+        value: "https://pointcv.vercel.app,https://pointcv-frontend.vercel.app,https://pointcv.id,https://www.pointcv.id"
+      - key: WEB_CONCURRENCY
+        value: "1"
+      - key: R2_BUCKET_NAME
+        value: pointcv-files
+      - key: MIDTRANS_IS_PRODUCTION
+        value: "false"
+      # Secrets — set in Render dashboard, NOT here:
+      # BETTER_AUTH_SECRET, BETTER_AUTH_URL, MIDTRANS_SERVER_KEY,
+      # MIDTRANS_CLIENT_KEY, R2_ENDPOINT_URL, R2_ACCESS_KEY_ID,
+      # R2_SECRET_ACCESS_KEY, R2_PUBLIC_URL

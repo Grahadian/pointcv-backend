@@ -75,6 +75,9 @@ async def status_stream(
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache, no-transform",
+            # Opt out of the global GZipMiddleware: compressing an endless
+            # SSE stream would buffer heartbeat pings and break progress UI.
+            "Content-Encoding": "identity",
             "X-Accel-Buffering": "no",
             "Connection": "keep-alive",
         },

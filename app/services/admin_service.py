@@ -2,7 +2,7 @@ import math
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import cast, func, select
+from sqlalchemy import case, cast, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -418,40 +418,60 @@ async def delete_blog_post(db: AsyncSession, post_id: str) -> None:
 async def get_dashboard_stats(db: AsyncSession) -> dict[str, int]:
     month_start = _month_start()
 
-    total_orders = (await db.execute(select(func.count(Order.id)))).scalar_one()
-    pending_orders = (
-        await db.execute(select(func.count(Order.id)).where(Order.status == "PENDING"))
-    ).scalar_one()
-    processing_orders = (
-        await db.execute(select(func.count(Order.id)).where(Order.status == "PROCESSING"))
-    ).scalar_one()
-    completed_orders = (
-        await db.execute(select(func.count(Order.id)).where(Order.status == "DONE"))
-    ).scalar_one()
-    total_revenue = (
+    revenue_expr = func.coalesce(
+        func.sum(
+            case(
+                (Order.payment_status == "PAID", Order.price - Order.discount_amount),
+                else_=0,
+            )
+        ),
+        0,
+    )
+    month_revenue_expr = func.coalesce(
+        func.sum(
+            case(
+                (
+                    (Order.payment_status == "PAID")
+                    & (Order.updated_at >= month_start),
+                    Order.price - Order.discount_amount,
+                ),
+                else_=0,
+            )
+        ),
+        0,
+    )
+
+    order_row = (
         await db.execute(
-            select(func.coalesce(func.sum(Order.price - Order.discount_amount), 0))
-            .where(Order.payment_status == "PAID")
+            select(
+                func.count(Order.id).label("total_orders"),
+                func.count(case((Order.status == "PENDING", 1))).label("pending_orders"),
+                func.count(case((Order.status == "PROCESSING", 1))).label("processing_orders"),
+                func.count(case((Order.status == "DONE", 1))).label("completed_orders"),
+                revenue_expr.label("total_revenue"),
+                month_revenue_expr.label("revenue_this_month"),
+            )
         )
-    ).scalar_one()
-    revenue_this_month = (
+    ).one()
+
+    user_row = (
         await db.execute(
-            select(func.coalesce(func.sum(Order.price - Order.discount_amount), 0))
-            .where(Order.payment_status == "PAID", Order.updated_at >= month_start)
+            select(
+                func.count(User.id).label("total_users"),
+                func.count(case((User.created_at >= month_start, 1))).label(
+                    "new_users_this_month"
+                ),
+            )
         )
-    ).scalar_one()
-    total_users = (await db.execute(select(func.count(User.id)))).scalar_one()
-    new_users_this_month = (
-        await db.execute(select(func.count(User.id)).where(User.created_at >= month_start))
-    ).scalar_one()
+    ).one()
 
     return {
-        "total_orders": total_orders,
-        "pending_orders": pending_orders,
-        "processing_orders": processing_orders,
-        "completed_orders": completed_orders,
-        "total_revenue": total_revenue,
-        "revenue_this_month": revenue_this_month,
-        "total_users": total_users,
-        "new_users_this_month": new_users_this_month,
+        "total_orders": order_row.total_orders,
+        "pending_orders": order_row.pending_orders,
+        "processing_orders": order_row.processing_orders,
+        "completed_orders": order_row.completed_orders,
+        "total_revenue": order_row.total_revenue,
+        "revenue_this_month": order_row.revenue_this_month,
+        "total_users": user_row.total_users,
+        "new_users_this_month": user_row.new_users_this_month,
     }

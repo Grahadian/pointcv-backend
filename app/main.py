@@ -1,10 +1,12 @@
 import logging
+import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
@@ -55,6 +57,23 @@ def create_app() -> FastAPI:
         allow_headers=["Authorization", "Content-Type", "Origin", "Accept", "X-Requested-With"],
         expose_headers=["X-Total-Count"],
     )
+    # Added last so it is the outermost middleware: compresses JSON responses
+    # for bandwidth savings on the free Render tier.
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+    @app.middleware("http")
+    async def log_requests(request: Request, call_next):
+        start = time.monotonic()
+        response = await call_next(request)
+        duration = time.monotonic() - start
+        logger.info(
+            "%s %s -> %s %.3fs",
+            request.method,
+            request.url.path,
+            response.status_code,
+            duration,
+        )
+        return response
 
     @app.middleware("http")
     async def unexpected_exception_middleware(request: Request, call_next):

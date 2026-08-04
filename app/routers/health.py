@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Response
 from sqlalchemy import text
@@ -11,9 +12,15 @@ router = APIRouter(prefix="/health", tags=["health"])
 logger = logging.getLogger(__name__)
 
 
+# Lightweight liveness probe — no DB call, always <50ms so Render health
+# checks (and uptime pings) never spin up extra work on the free tier.
 @router.get("")
 async def health_check() -> dict[str, str]:
-    return {"status": "ok", "service": "pointcv-api"}
+    return {
+        "status": "ok",
+        "service": "pointcv-api",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 async def _check_database() -> dict[str, str]:
