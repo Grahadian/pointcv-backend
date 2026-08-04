@@ -8,6 +8,7 @@ from app.models.models import (
     PaymentEvent,
     PortfolioItem,
     User,
+    UserRole,
     Voucher,
 )
 
@@ -21,5 +22,6 @@ __all__ = [
     "PaymentEvent",
     "PortfolioItem",
     "User",
+    "UserRole",
     "Voucher",
 ]

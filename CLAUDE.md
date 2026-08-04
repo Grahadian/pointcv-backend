@@ -7,7 +7,7 @@ Midtrans payment, Cloudflare R2 file storage, and real-time progress tracking.
 
 ## Tech Stack
 - Frontend: Next.js 14 (App Router) + TypeScript + Tailwind + shadcn/ui
-- Auth: Clerk (@clerk/nextjs)
+- Auth: Better Auth (self-hosted; HS256 JWT shared-secret verification)
 - Backend: FastAPI + Python 3.11 + SQLAlchemy 2.0 async
 - Database: SQLite (dev) → Neon PostgreSQL (prod)
 - Storage: Cloudflare R2 (presigned URLs)
@@ -25,16 +25,14 @@ Midtrans payment, Cloudflare R2 file storage, and real-time progress tracking.
 8. Both: Type safety mandatory. No `any` in TS, type hints in Python.
 
 ## Current Status
-- Phase: 1 — Backend Foundation
-- Done: 0.1 (Init), 1.1 (Structure), 1.2 (Migration & Seed)
-- Next: 1.3 — Auth & Clerk Webhook
-- Blocked: Python 3.14 local compatibility (use Render for testing)
+- Phase: Auth migrated from Clerk to Better Auth
+- Auth: Verifies HS256 JWTs issued by the frontend using the shared `BETTER_AUTH_SECRET`; user row auto-created on first request (first user becomes admin)
 
 ## Environment Variables
 ### Backend (.env)
 DATABASE_URL=sqlite+aiosqlite:///./pointcv.db
-CLERK_SECRET_KEY=sk_test_xxx
-CLERK_JWKS_URL=https://api.clerk.dev/v1/jwks
+BETTER_AUTH_SECRET=shared_secret_matching_frontend
+BETTER_AUTH_URL=http://localhost:3000
 MIDTRANS_SERVER_KEY=SB-Mid-server-xxx
 MIDTRANS_CLIENT_KEY=SB-Mid-client-xxx
 MIDTRANS_IS_PRODUCTION=false
@@ -45,10 +43,7 @@ R2_BUCKET_NAME=pointcv-files
 R2_PUBLIC_URL=https://pub-xxx.r2.dev
 
 ### Frontend (.env.local)
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_xxx
-CLERK_SECRET_KEY=sk_test_xxx
-NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
-NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
-NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard
-NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard
+BETTER_AUTH_SECRET=must_match_backend
+BETTER_AUTH_URL=http://localhost:3000
+NEXT_PUBLIC_BETTER_AUTH_URL=http://localhost:3000
 NEXT_PUBLIC_API_URL=http://localhost:8000

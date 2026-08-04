@@ -2,11 +2,30 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
+from app.exceptions import PointCVException
+from app.models import Package
 from app.schemas.catalog import PackageResponse, TemplateResponse
-from app.schemas.content import BlogListResponse, BlogPostResponse, PortfolioItemResponse
-from app.services import admin_service
+from app.schemas.content import (
+    BlogListResponse,
+    BlogPostResponse,
+    PortfolioItemResponse,
+    VoucherValidateRequest,
+    VoucherValidateResponse,
+)
+from app.services import admin_service, order_service
 
 router = APIRouter(prefix="/public", tags=["public"])
+
+
+@router.post("/vouchers/validate", response_model=VoucherValidateResponse)
+async def validate_voucher(
+    data: VoucherValidateRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    package = await db.get(Package, data.package_id)
+    if package is None:
+        raise PointCVException(404, "Package not found", "not_found")
+    return await order_service.validate_voucher(db, data.code, package.price)
 
 
 @router.get("/packages", response_model=list[PackageResponse])

@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import math
 import re
 from collections.abc import AsyncGenerator
@@ -25,6 +26,8 @@ from app.models import (
     Voucher,
 )
 from app.schemas.orders import OrderCreate
+
+logger = logging.getLogger(__name__)
 
 ORDER_STATUSES = {
     "PENDING",
@@ -145,6 +148,30 @@ async def _apply_voucher(
     return discount
 
 
+async def validate_voucher(
+    db: AsyncSession,
+    voucher_code: str | None,
+    package_price: int,
+) -> dict[str, Any]:
+    if not voucher_code:
+        return {"valid": True, "discount": 0, "message": ""}
+
+    result = await db.execute(
+        select(Voucher).where(func.lower(Voucher.code) == voucher_code.lower())
+    )
+    voucher = result.scalar_one_or_none()
+    if voucher is None:
+        return {"valid": False, "discount": 0, "message": "Voucher not found"}
+
+    try:
+        _validate_voucher_window(voucher, datetime.utcnow())
+    except PointCVException as exc:
+        return {"valid": False, "discount": 0, "message": exc.message}
+
+    discount = _calculate_discount(voucher, package_price)
+    return {"valid": True, "discount": discount, "message": "Voucher applied"}
+
+
 def _log_status_change(
     db: AsyncSession,
     order: Order,
@@ -185,6 +212,9 @@ def _log_initial_status(
     )
 
 
+ALLOWED_ORDER_FILE_TYPES = {"PHOTO", "CERTIFICATE", "DIPLOMA", "DOCUMENT", "RESULT_PDF"}
+
+
 async def create_order(db: AsyncSession, user_id: str, data: OrderCreate) -> Order:
     package = await db.get(Package, data.package_id)
     if package is None or not package.is_active:
@@ -213,6 +243,24 @@ async def create_order(db: AsyncSession, user_id: str, data: OrderCreate) -> Ord
         db.add(order)
         await db.flush()
         _log_initial_status(db, order, user_id, "Order created")
+
+        for file_input in data.files or []:
+            if file_input.file_type not in ALLOWED_ORDER_FILE_TYPES:
+                raise _bad_request("Invalid file type")
+            if not file_input.key.startswith(f"uploads/{user_id}/"):
+                raise _bad_request("Uploaded file key does not belong to this user")
+            db.add(
+                OrderFile(
+                    order_id=order.id,
+                    filename=file_input.key,
+                    original_name=file_input.filename,
+                    url=file_input.url,
+                    file_type=file_input.file_type,
+                    mime_type=file_input.mime_type,
+                    size_bytes=file_input.size_bytes,
+                )
+            )
+
         await db.commit()
     except Exception:
         await db.rollback()
@@ -463,27 +511,40 @@ async def get_order_status_stream(
     db: AsyncSession,
     order_id: UUID | str,
 ) -> AsyncGenerator[str, None]:
+    order_uuid = _order_id(order_id)
+    not_found_polls = 0
     while True:
         try:
             result = await db.execute(
                 select(Order.id, Order.status, Order.progress).where(
-                    Order.id == _order_id(order_id)
+                    Order.id == order_uuid
                 )
             )
             row = result.one_or_none()
             if row is None:
+                not_found_polls += 1
                 payload = {
-                    "order_id": _order_id(order_id),
+                    "order_id": str(order_uuid),
                     "status": "NOT_FOUND",
                     "progress": 0,
                 }
             else:
+                not_found_polls = 0
                 payload = {
                     "order_id": row.id,
                     "status": row.status,
                     "progress": row.progress,
                 }
             yield f"data: {json.dumps(payload)}\n\n"
+            # Yield an SSE comment as an idle heartbeat for intermediaries.
+            yield ": ping\n\n"
+            if row is None and not_found_polls >= 10:
+                logger.info("Closing SSE stream: order not found %s", order_uuid)
+                break
             await asyncio.sleep(3)
         except asyncio.CancelledError:
+            # Client disconnected: Starlette cancels the generator here.
+            break
+        except Exception:
+            logger.exception("SSE stream ended for order %s", order_uuid)
             break

@@ -40,6 +40,17 @@ class VoucherResponse(VoucherBase, ORMModel):
     created_at: datetime
 
 
+class VoucherValidateRequest(BaseModel):
+    code: str = Field(min_length=1, max_length=100)
+    package_id: str
+
+
+class VoucherValidateResponse(BaseModel):
+    valid: bool
+    discount: int
+    message: str
+
+
 class PortfolioItemBase(BaseModel):
     title: dict[str, Any]
     description: dict[str, Any] | None = None

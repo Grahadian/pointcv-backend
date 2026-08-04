@@ -6,7 +6,7 @@
   - Interactivity (buttons, forms)
   - Browser APIs (localStorage, EventSource)
   - Hooks (useState, useEffect)
-  - Clerk components (UserButton, SignIn)
+  - Better Auth (UserMenu, sign-in/sign-up forms)
 
 ## Data Fetching
 ```typescript
@@ -25,7 +25,7 @@ useEffect(() => {
 const api = axios.create({ baseURL: process.env.NEXT_PUBLIC_API_URL });
 
 api.interceptors.request.use(async (config) => {
-  const token = await window.Clerk?.session?.getToken();
+  // Better Auth: fetch JWT from /api/auth/token server route
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });

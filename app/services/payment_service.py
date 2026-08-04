@@ -170,10 +170,16 @@ async def verify_notification_signature(payload: dict, server_key: str) -> bool:
     gross_amount = payload.get("gross_amount")
     signature_key = payload.get("signature_key")
 
-    if not all(
-        isinstance(value, str)
-        for value in [order_id, status_code, gross_amount, signature_key]
-    ):
+    if any(value is None for value in [order_id, status_code, gross_amount, signature_key]):
+        return False
+
+    order_id, status_code, gross_amount, signature_key = (
+        str(order_id),
+        str(status_code),
+        str(gross_amount),
+        str(signature_key),
+    )
+    if not signature_key:
         return False
 
     raw_signature = f"{order_id}{status_code}{gross_amount}{server_key}"

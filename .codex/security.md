@@ -3,8 +3,8 @@
 ## Authentication
 - NEVER hardcode API keys, secrets, or tokens in source code
 - ALL secrets must come from environment variables via pydantic-settings
-- Clerk JWT must be verified on EVERY protected endpoint
-- Webhook endpoints must verify signature (Clerk: svix, Midtrans: SHA512)
+- Better Auth JWT (HS256, shared secret) must be verified on EVERY protected endpoint
+- Webhook endpoints must verify signature (Midtrans: SHA512)
 
 ## File Upload
 - NEVER expose R2/S3 credentials to frontend

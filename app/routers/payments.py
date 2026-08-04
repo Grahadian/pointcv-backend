@@ -1,3 +1,4 @@
+import json
 import logging
 from uuid import UUID
 
@@ -26,8 +27,15 @@ async def midtrans_webhook(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
+    # PUBLIC endpoint (no auth dependency): always answer 200 so Midtrans
+    # stops retrying. Signature verification happens inside the service.
     try:
-        payload = await request.json()
+        raw_body = await request.body()
+        logger.info("Midtrans webhook received: %s", raw_body.decode("utf-8", errors="replace"))
+        try:
+            payload = json.loads(raw_body)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            payload = {"raw_payload": raw_body.decode("utf-8", errors="replace")}
         if not isinstance(payload, dict):
             payload = {"raw_payload": payload}
         await payment_service.process_notification(db, payload)

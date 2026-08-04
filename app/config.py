@@ -7,9 +7,8 @@ class Settings(BaseSettings):
     APP_NAME: str = "PointCV API"
     DEBUG: bool = False
     DATABASE_URL: str = "sqlite+aiosqlite:///./pointcv.db"
-    CLERK_SECRET_KEY: str = ""
-    CLERK_WEBHOOK_SECRET: str = ""
-    CLERK_JWKS_URL: str = "https://api.clerk.dev/v1/jwks"
+    BETTER_AUTH_SECRET: str = ""
+    BETTER_AUTH_URL: str = "http://localhost:3000"
     MIDTRANS_SERVER_KEY: str = ""
     MIDTRANS_CLIENT_KEY: str = ""
     MIDTRANS_IS_PRODUCTION: bool = False

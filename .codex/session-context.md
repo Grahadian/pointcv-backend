@@ -1,8 +1,8 @@
 # PointCV Session Context
 
 ## Current Phase: Week 1 - Backend Foundation
-## Last Task: Prompt 1.2 - Alembic Migration & Seed
-## Next Task: Prompt 1.3 - Auth & Clerk Webhook
+## Last Task: Auth migrated from Clerk to Better Auth
+## Next Task: -
 ## Open Issues: Python 3.14 compatibility on local machine
 ## Recent Commits:
 - 4e07cf5: Initialize FastAPI backend structure

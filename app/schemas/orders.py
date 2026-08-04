@@ -41,7 +41,7 @@ class UploadRequest(BaseModel):
     file_type: str
     mime_type: str = Field(min_length=1, max_length=100)
     size_bytes: int = Field(gt=0)
-    order_id: UUID | None = None
+    order_id: str | None = None
 
 
 class UploadURLResponse(BaseModel):
@@ -53,6 +53,15 @@ class UploadURLResponse(BaseModel):
 
 class UploadConfirm(BaseModel):
     order_id: UUID
+    key: str = Field(min_length=1, max_length=1024)
+    filename: str = Field(min_length=1, max_length=255)
+    url: str = Field(min_length=1, max_length=1024)
+    file_type: str
+    mime_type: str = Field(min_length=1, max_length=100)
+    size_bytes: int = Field(gt=0)
+
+
+class OrderFileInput(BaseModel):
     key: str = Field(min_length=1, max_length=1024)
     filename: str = Field(min_length=1, max_length=255)
     url: str = Field(min_length=1, max_length=1024)
@@ -83,6 +92,7 @@ class OrderCreate(BaseModel):
     voucher_code: str | None = None
     cv_data: dict[str, Any] | None = None
     notes: str | None = None
+    files: list[OrderFileInput] | None = None
 
 
 class OrderUpdate(BaseModel):

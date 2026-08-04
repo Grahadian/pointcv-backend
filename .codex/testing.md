@@ -3,7 +3,7 @@
 ## Backend
 - Test all service functions
 - Test all API endpoints (happy path + error cases)
-- Mock external services (Midtrans, R2, Clerk)
+- Mock external services (Midtrans, R2)
 - Use pytest + pytest-asyncio
 - Target: 80% coverage minimum
 

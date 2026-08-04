@@ -73,4 +73,9 @@ async def status_stream(
     return StreamingResponse(
         order_service.get_order_status_stream(db, order_id),
         media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
     )

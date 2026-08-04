@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from enum import Enum as PyEnum
 
 from sqlalchemy import (
     CheckConstraint,
@@ -17,6 +18,11 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+
+class UserRole(str, PyEnum):
+    CUSTOMER = "customer"
+    ADMIN = "admin"
 
 
 def uuid_str() -> str:
@@ -41,6 +47,12 @@ class User(TimestampMixin, Base):
     phone: Mapped[str | None] = mapped_column(String(50))
     avatar_url: Mapped[str | None] = mapped_column(String(1024))
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    role: Mapped[str] = mapped_column(
+        String,
+        default=UserRole.CUSTOMER.value,
+        server_default=UserRole.CUSTOMER.value,
+        nullable=False,
+    )
     orders: Mapped[list["Order"]] = relationship(back_populates="user")
 
 
