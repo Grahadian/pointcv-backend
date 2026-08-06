@@ -3,6 +3,7 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.config import get_settings
 from app.database import get_db_engine
@@ -14,23 +15,19 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: test database
     try:
         engine = get_db_engine()
         async with engine.connect() as conn:
-            await conn.execute("SELECT 1")
+            await conn.execute(text("SELECT 1"))
         logger.info("Database connected")
     except Exception as e:
         logger.error(f"Database connection failed: {e}")
         raise RuntimeError("Could not connect to the database on startup.")
     
-    # Verify BETTER_AUTH_SECRET
     if not settings.BETTER_AUTH_SECRET:
         raise RuntimeError("BETTER_AUTH_SECRET is not set")
     
     yield
-    # Shutdown
-    await engine.dispose()
 
 
 app = FastAPI(
@@ -39,14 +36,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS: allow credentials + exact origin
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS.split(",") if settings.ALLOWED_ORIGINS else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],
 )
 
 app.include_router(health.router)
