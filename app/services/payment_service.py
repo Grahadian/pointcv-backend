@@ -125,6 +125,7 @@ async def create_snap_transaction(
         raise _bad_request("Failed to connect to payment gateway") from exc
 
     body = response.json()
+    logger.info("Midtrans Snap response: order_id=%s status=%s body=%s", order_id, response.status_code, response.text)
     token = body.get("token")
     if not isinstance(token, str) or not token:
         raise _bad_request("Payment gateway did not return a snap token")
@@ -146,6 +147,8 @@ async def create_payment(
         raise _not_found("Order not found")
     if order.user_id != user_id:
         raise _forbidden()
+    if order.payment_status == "PAID":
+        raise _conflict("Pesanan sudah dibayar")
     if order.status != "PENDING" or order.payment_status != "UNPAID":
         raise _conflict("Order is not available for payment")
 
@@ -316,6 +319,9 @@ async def process_notification(db: AsyncSession, payload: dict) -> None:
         logger.info("Unhandled Midtrans status recorded: %s", transaction_status)
 
     try:
+        transaction_id = _optional_str(payload.get("transaction_id"))
+        if transaction_id and order.payment_id != transaction_id:
+            order.payment_id = transaction_id
         if order.payment_status != new_payment_status:
             order.payment_status = new_payment_status
         if order.status != new_order_status:

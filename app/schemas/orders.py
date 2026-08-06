@@ -117,6 +117,7 @@ class OrderResponse(OrderBase, ORMModel):
     package: PackageResponse
     template: TemplateResponse
     files: list[FileResponse] = Field(default_factory=list)
+    status_history: list["OrderStatusHistoryResponse"] = Field(default_factory=list)
 
     @computed_field
     @property
@@ -193,3 +194,6 @@ class OrderStatusHistoryUpdate(BaseModel):
 class OrderStatusHistoryResponse(OrderStatusHistoryBase, ORMModel):
     id: str
     created_at: datetime
+
+
+OrderResponse.model_rebuild()
