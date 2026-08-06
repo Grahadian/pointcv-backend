@@ -23,6 +23,11 @@ async def seed_packages(db: AsyncSession) -> None:
                 includes_letter=False,
                 includes_linkedin=False,
                 priority_support=False,
+                features=[
+                    "1 CV profesional",
+                    "2x revisi",
+                    "PDF + DOCX siap pakai",
+                ],
                 sort_order=1,
             ),
             Package(
@@ -37,6 +42,12 @@ async def seed_packages(db: AsyncSession) -> None:
                 includes_letter=True,
                 includes_linkedin=False,
                 priority_support=False,
+                features=[
+                    "1 CV profesional",
+                    "Surat lamaran (cover letter)",
+                    "2x revisi",
+                    "PDF + DOCX siap pakai",
+                ],
                 sort_order=2,
             ),
             Package(
@@ -51,6 +62,13 @@ async def seed_packages(db: AsyncSession) -> None:
                 includes_letter=True,
                 includes_linkedin=True,
                 priority_support=True,
+                features=[
+                    "1 CV profesional",
+                    "Surat lamaran (cover letter)",
+                    "Optimasi LinkedIn",
+                    "Revisi tanpa batas",
+                    "Dukungan prioritas",
+                ],
                 sort_order=3,
             ),
         ]
@@ -71,6 +89,7 @@ async def seed_templates(db: AsyncSession) -> None:
                     "id": "Desain bersih dengan aksen warna dan layout sidebar.",
                     "en": "Clean design with colorful accents and sidebar layout.",
                 },
+                category="MODERN",
                 sort_order=1,
             ),
             CVTemplate(
@@ -80,6 +99,7 @@ async def seed_templates(db: AsyncSession) -> None:
                     "id": "Desain tradisional, formal, dan abadi.",
                     "en": "Traditional and formal timeless design.",
                 },
+                category="CLASSIC",
                 sort_order=2,
             ),
             CVTemplate(
@@ -89,6 +109,7 @@ async def seed_templates(db: AsyncSession) -> None:
                     "id": "Format minimal, dioptimalkan dengan kata kunci untuk ATS.",
                     "en": "Minimal formatting, keyword optimized for ATS.",
                 },
+                category="ATS_FRIENDLY",
                 sort_order=3,
             ),
         ]

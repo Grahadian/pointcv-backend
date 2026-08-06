@@ -15,6 +15,7 @@ class PackageBase(BaseModel):
     includes_letter: bool = False
     includes_linkedin: bool = False
     priority_support: bool = False
+    features: list[str] | None = None
     is_active: bool = True
     sort_order: int = 0
 
@@ -32,6 +33,7 @@ class PackageUpdate(BaseModel):
     includes_letter: bool | None = None
     includes_linkedin: bool | None = None
     priority_support: bool | None = None
+    features: list[str] | None = None
     is_active: bool | None = None
     sort_order: int | None = None
 
@@ -47,6 +49,7 @@ class TemplateBase(BaseModel):
     slug: str
     description: dict[str, Any]
     preview_image_url: str | None = None
+    category: str | None = None
     is_active: bool = True
     sort_order: int = 0
 
@@ -60,6 +63,7 @@ class TemplateUpdate(BaseModel):
     slug: str | None = None
     description: dict[str, Any] | None = None
     preview_image_url: str | None = None
+    category: str | None = None
     is_active: bool | None = None
     sort_order: int | None = None
 

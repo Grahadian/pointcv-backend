@@ -10,7 +10,7 @@ from sqlalchemy.types import String
 
 from app.exceptions import PointCVException
 from app.models import BlogPost, CVTemplate, Order, Package, PortfolioItem, User, Voucher
-from app.schemas.catalog import PackageCreate, PackageUpdate
+from app.schemas.catalog import PackageCreate, PackageUpdate, TemplateCreate, TemplateUpdate
 from app.schemas.content import (
     BlogPostCreate,
     BlogPostUpdate,
@@ -61,6 +61,21 @@ def _validate_package_data(data: PackageCreate | PackageUpdate) -> None:
         and values["max_revisions"] < -1
     ):
         raise _bad_request("Package max_revisions must be -1 or greater")
+    if "features" in values and values["features"] is not None:
+        for feature in values["features"]:
+            if not isinstance(feature, str) or not feature.strip():
+                raise _bad_request("Package features must be non-empty strings")
+
+
+def _validate_template_data(data: TemplateCreate | TemplateUpdate) -> None:
+    values = data.model_dump(exclude_unset=True)
+    if "description" in values and values["description"] is not None:
+        _validate_bilingual(values["description"], "description")
+    if "category" in values and values["category"] is not None:
+        category = values["category"].upper()
+        valid = {"MODERN", "CLASSIC", "ATS_FRIENDLY"}
+        if category not in valid:
+            raise _bad_request("Invalid template category")
 
 
 def _validate_voucher_data(data: VoucherCreate | VoucherUpdate) -> None:
@@ -283,6 +298,43 @@ async def delete_package(db: AsyncSession, package_id: str) -> None:
     if package is None:
         raise _not_found("Package not found")
     await _delete_entity(db, package)
+
+
+async def list_templates(db: AsyncSession, page: int, limit: int) -> list[CVTemplate]:
+    result = await db.execute(
+        select(CVTemplate)
+        .order_by(CVTemplate.sort_order, CVTemplate.name)
+        .offset((page - 1) * limit)
+        .limit(limit)
+    )
+    return list(result.scalars().all())
+
+
+async def create_template(db: AsyncSession, data: TemplateCreate) -> CVTemplate:
+    _validate_template_data(data)
+    template = CVTemplate(**data.model_dump())
+    db.add(template)
+    return await _commit_refresh(db, template)
+
+
+async def update_template(
+    db: AsyncSession,
+    template_id: str,
+    data: TemplateUpdate,
+) -> CVTemplate:
+    _validate_template_data(data)
+    template = await db.get(CVTemplate, template_id)
+    if template is None:
+        raise _not_found("Template not found")
+    _apply_update(template, data)
+    return await _commit_refresh(db, template)
+
+
+async def delete_template(db: AsyncSession, template_id: str) -> None:
+    template = await db.get(CVTemplate, template_id)
+    if template is None:
+        raise _not_found("Template not found")
+    await _delete_entity(db, template)
 
 
 async def list_vouchers(db: AsyncSession, page: int, limit: int) -> list[Voucher]:

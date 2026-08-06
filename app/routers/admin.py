@@ -5,7 +5,14 @@ from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, require_admin
-from app.schemas.catalog import PackageCreate, PackageResponse, PackageUpdate
+from app.schemas.catalog import (
+    PackageCreate,
+    PackageResponse,
+    PackageUpdate,
+    TemplateCreate,
+    TemplateResponse,
+    TemplateUpdate,
+)
 from app.schemas.content import (
     BlogPostCreate,
     BlogPostListResponse,
@@ -112,6 +119,49 @@ async def delete_package(
     db: AsyncSession = Depends(get_db),
 ):
     await admin_service.delete_package(db, id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/templates", response_model=list[TemplateResponse])
+async def list_templates(
+    page: int = Query(1, ge=1),
+    limit: int = Query(100, ge=1, le=100),
+    _: str = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    return await admin_service.list_templates(db, page, limit)
+
+
+@router.post(
+    "/templates",
+    response_model=TemplateResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_template(
+    data: TemplateCreate,
+    _: str = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    return await admin_service.create_template(db, data)
+
+
+@router.patch("/templates/{id}", response_model=TemplateResponse)
+async def update_template(
+    id: str,
+    data: TemplateUpdate,
+    _: str = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    return await admin_service.update_template(db, id, data)
+
+
+@router.delete("/templates/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_template(
+    id: str,
+    _: str = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    await admin_service.delete_template(db, id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
