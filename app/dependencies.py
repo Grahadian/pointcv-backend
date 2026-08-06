@@ -1,78 +1,67 @@
-from collections.abc import AsyncGenerator
-from typing import Any
-
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select
+import jwt
+from fastapi import Depends, HTTPException, status, Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.database import get_db as get_database_session
-from app.models import User
-from app.services.auth_service import ensure_user_exists, get_or_create_user
-from app.services.jwt_service import jwt_service
+from app.database import get_db
+from app.models.models import User
 
+settings = get_settings()
 security = HTTPBearer(auto_error=False)
 
-DEV_AUTH_TOKEN = "test_token"
-DEV_AUTH_USER_ID = "test_user"
 
-
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    async for session in get_database_session():
-        yield session
-
-
-def _verify_token(token: str) -> dict[str, Any]:
-    settings = get_settings()
-    if not settings.BETTER_AUTH_SECRET:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Authentication service is not configured",
+def verify_better_auth_token(token: str) -> dict:
+    """Verify Better Auth JWT token."""
+    try:
+        payload = jwt.decode(
+            token,
+            settings.BETTER_AUTH_SECRET,
+            algorithms=["HS256"],
+            options={"verify_aud": False},
         )
-    return jwt_service.verify_token(token)
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 
-def _extract_claims(claims: dict[str, Any]) -> tuple[str, str | None, str | None, str | None]:
-    user_id = claims.get("sub")
-    if not isinstance(user_id, str) or not user_id:
+async def get_current_user_id(request: Request) -> str:
+    """
+    Extract user ID from Better Auth session.
+    Tries: 1) Authorization header, 2) Cookie
+    """
+    token = None
+    
+    # 1. Try Authorization header
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+    
+    # 2. Try Better Auth cookie (cross-origin fallback)
+    if not token:
+        cookie = request.cookies.get("better-auth.session_token")
+        if cookie:
+            token = cookie
+    
+    # 3. Try chunked cookie (Better Auth sometimes splits long tokens)
+    if not token:
+        token = request.cookies.get("__Secure-better-auth.session_token")
+    
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication token is missing a subject",
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
         )
-    email = claims.get("email")
-    name = claims.get("name")
-    avatar_url = claims.get("image")
-    return user_id, email, name, avatar_url
-
-
-async def get_current_user_id(
-    credentials: HTTPAuthorizationCredentials | None = Depends(security),
-    db: AsyncSession = Depends(get_db),
-) -> str:
-    if credentials is None or credentials.scheme.lower() != "bearer":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication bearer token required",
-        )
-
-    token = credentials.credentials
-    settings = get_settings()
-    if token == DEV_AUTH_TOKEN and settings.DEBUG:
-        await ensure_user_exists(db, DEV_AUTH_USER_ID)
-        return DEV_AUTH_USER_ID
-
-    claims = _verify_token(token)
-    user_id, email, name, avatar_url = _extract_claims(claims)
-
-    await get_or_create_user(
-        db,
-        user_id=user_id,
-        email=email,
-        name=name,
-        avatar_url=avatar_url,
-    )
-
+    
+    payload = verify_better_auth_token(token)
+    user_id = payload.get("sub") or payload.get("id")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+    
     return user_id
 
 
@@ -80,26 +69,28 @@ async def get_current_user(
     user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ) -> User:
+    """Get user from database or create if not exists (lazy sync)."""
+    from sqlalchemy import select
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
+    
+    if not user:
+        # Lazy create user
+        user = User(id=user_id, email=f"user_{user_id[:8]}@pointcv.id")
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+    
     return user
 
 
 async def require_admin(
-    user_id: str = Depends(get_current_user_id),
-    db: AsyncSession = Depends(get_db),
-) -> str:
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    if user is None or not user.is_admin:
+    user: User = Depends(get_current_user),
+) -> User:
+    """Require admin role."""
+    if user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Administrator access required",
+            detail="Admin access required",
         )
-
-    return user_id
+    return user
