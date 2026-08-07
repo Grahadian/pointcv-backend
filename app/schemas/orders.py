@@ -155,6 +155,7 @@ class AdminOrderListResponse(BaseModel):
 
 class PaymentRequest(BaseModel):
     order_id: UUID
+    price: int | None = Field(default=None, ge=0)
 
 
 class PaymentResponse(BaseModel):

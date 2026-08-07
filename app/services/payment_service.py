@@ -141,6 +141,7 @@ async def create_payment(
     db: AsyncSession,
     order_id: UUID,
     user_id: str,
+    price: int | None = None,
 ) -> dict[str, str | None]:
     order = await db.get(Order, str(order_id))
     if order is None:
@@ -152,7 +153,15 @@ async def create_payment(
     if order.status != "PENDING" or order.payment_status != "UNPAID":
         raise _conflict("Order is not available for payment")
 
-    transaction = await create_snap_transaction(order_id, _final_price(order), user_id)
+    final_price = _final_price(order)
+    if price is not None and price != final_price:
+        logger.warning(
+            "Client-supplied price %s differs from authoritative final price %s; using server-side price",
+            price,
+            final_price,
+        )
+
+    transaction = await create_snap_transaction(order_id, final_price, user_id)
     order.payment_id = str(order_id)
     try:
         await db.commit()

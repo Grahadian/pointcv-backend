@@ -19,7 +19,7 @@ async def create_payment(
     user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ):
-    return await payment_service.create_payment(db, data.order_id, user_id)
+    return await payment_service.create_payment(db, data.order_id, user_id, data.price)
 
 
 @router.post("/webhook")
