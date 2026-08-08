@@ -15,7 +15,7 @@ from app.exceptions import (
     request_validation_exception_handler,
     validation_exception_handler,
 )
-from app.routers import auth, health, orders, payments, files, public, admin
+from app.routers import auth, health, orders, payments, files, public, admin, testimonials
 from app.seed import seed_data
 
 settings = get_settings()
@@ -77,6 +77,9 @@ app.include_router(payments.router)
 app.include_router(files.router)
 app.include_router(public.router)
 app.include_router(admin.router)
+app.include_router(testimonials.router)
+app.include_router(testimonials.admin_router)
+app.include_router(testimonials.public_router)
 
 
 @app.get("/")

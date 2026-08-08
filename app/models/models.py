@@ -13,6 +13,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -236,6 +237,25 @@ class BlogPost(TimestampMixin, Base):
     view_count: Mapped[int] = mapped_column(Integer, default=0)
 
 
+class Testimonial(TimestampMixin, Base):
+    __tablename__ = "testimonials"
+    __table_args__ = (
+        UniqueConstraint("user_id", "order_id", name="uq_testimonials_user_order"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    order_id: Mapped[str | None] = mapped_column(
+        ForeignKey("orders.id", ondelete="SET NULL")
+    )
+    user_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    user_role: Mapped[str] = mapped_column(String(100), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    rating: Mapped[int] = mapped_column(Integer, nullable=False)
+    avatar_url: Mapped[str | None] = mapped_column(String(1024))
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+
+
 Index("idx_users_email", User.email)
 Index("idx_users_is_admin", User.is_admin)
 Index("idx_orders_user_id", Order.user_id)
@@ -245,3 +265,6 @@ Index("idx_order_history_order_id", OrderStatusHistory.order_id)
 Index("ix_orders_user_status", Order.user_id, Order.status)
 Index("ix_files_order_type", File.order_id, File.file_type)
 Index("ix_blog_posts_active_published", BlogPost.is_active, BlogPost.published_at)
+Index("idx_testimonials_user_id", Testimonial.user_id)
+Index("idx_testimonials_order_id", Testimonial.order_id)
+Index("idx_testimonials_status", Testimonial.status)
