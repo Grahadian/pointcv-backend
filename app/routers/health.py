@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 # Lightweight liveness probe — no DB call, always <50ms so Render health
 # checks (and uptime pings) never spin up extra work on the free tier.
-@router.get("")
+@router.api_route("", methods=["GET", "HEAD"])
 async def health_check() -> dict[str, str]:
     return {
         "status": "ok",
