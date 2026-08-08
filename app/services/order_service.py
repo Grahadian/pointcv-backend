@@ -296,6 +296,37 @@ async def get_order(
     return order
 
 
+EDITABLE_CV_STATUSES = {"PENDING", "PROCESSING"}
+
+
+async def update_cv_data(
+    db: AsyncSession,
+    order_id: UUID | str,
+    user_id: str,
+    cv_data: dict,
+) -> Order:
+    order = await _get_order_loaded(db, order_id)
+    if order is None:
+        raise _not_found()
+    if order.user_id != user_id:
+        raise _forbidden()
+    if order.status not in EDITABLE_CV_STATUSES:
+        raise _conflict("CV data can only be edited while the order is pending or in progress")
+
+    try:
+        merged = {**(order.cv_data or {}), **cv_data}
+        order.cv_data = merged
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
+
+    updated = await _get_order_loaded(db, order.id)
+    if updated is None:
+        raise _not_found()
+    return updated
+
+
 async def cancel_order(db: AsyncSession, order_id: UUID | str, user_id: str) -> Order:
     order = await _require_order(db, order_id)
     if order.user_id != user_id:

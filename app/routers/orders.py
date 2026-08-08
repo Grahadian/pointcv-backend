@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_current_user_id, get_db
 from app.exceptions import PointCVException
-from app.schemas.orders import OrderCreate, OrderResponse, RevisionRequest
+from app.schemas.orders import CvDataUpdate, OrderCreate, OrderResponse, RevisionRequest
 from app.services import order_service
 
 router = APIRouter(prefix="/orders", tags=["orders"])
@@ -53,6 +53,16 @@ async def cancel(
 ):
     await order_service.cancel_order(db, order_id, user_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.patch("/{order_id}/cv-data", response_model=OrderResponse)
+async def update_cv_data(
+    order_id: UUID,
+    data: CvDataUpdate,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    return await order_service.update_cv_data(db, order_id, user_id, data.cv_data)
 
 
 @router.post("/{order_id}/request-revision", response_model=OrderResponse)

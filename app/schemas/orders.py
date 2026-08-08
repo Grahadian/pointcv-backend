@@ -110,6 +110,10 @@ class OrderUpdate(BaseModel):
     revision_count: int | None = None
 
 
+class CvDataUpdate(BaseModel):
+    cv_data: dict[str, Any] = Field(default_factory=dict)
+
+
 class OrderResponse(OrderBase, ORMModel):
     id: str
     created_at: datetime

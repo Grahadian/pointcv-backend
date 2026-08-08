@@ -2,7 +2,7 @@ import asyncio
 import re
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -14,6 +14,7 @@ ALLOWED_FILE_TYPES = {"PHOTO", "CERTIFICATE", "DIPLOMA", "DOCUMENT", "RESULT_PDF
 IMAGE_MAX_BYTES = 5_242_880
 DOCUMENT_MAX_BYTES = 10_485_760
 PRESIGNED_URL_EXPIRES_SECONDS = 300
+MAX_USER_FILES_PER_ORDER = 5
 
 
 def _bad_request(message: str) -> PointCVException:
@@ -190,6 +191,14 @@ async def confirm_upload(
         order = await _get_order_for_user(db, order_id, user_id)
         if not key.startswith(f"uploads/{user_id}/"):
             raise _forbidden("Upload key does not belong to this user")
+        existing_count = await db.scalar(
+            select(func.count(File.id)).where(
+                File.order_id == str(order_id),
+                File.file_type != "RESULT_PDF",
+            )
+        )
+        if (existing_count or 0) >= MAX_USER_FILES_PER_ORDER:
+            raise _bad_request(f"Maximum {MAX_USER_FILES_PER_ORDER} files per order")
 
     if url != _public_url(key):
         raise _bad_request("Upload URL does not match storage key")
